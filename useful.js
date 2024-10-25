@@ -1,23 +1,37 @@
 const { EmbedBuilder } = require('discord.js');
 
+// Function to get a user by ID, mention, or username
+async function getUser(message, identifier) {
+  const userMention = message.mentions.users.first();
+  if (userMention) return userMention;
+
+  if (identifier && !isNaN(identifier)) {
+    try {
+      return await message.guild.members.fetch(identifier);
+    } catch {
+      // Not found; continue to check username
+    }
+  }
+
+  if (identifier && typeof identifier === 'string') {
+    const members = await message.guild.members.fetch();
+    const member = members.find(member => member.user.username.toLowerCase() === identifier.toLowerCase());
+    return member || null; // Return the member found or null if not found
+  }
+
+  return null; // Return null if identifier is undefined or not a valid string
+}
+
 module.exports = {
   userinfo: async (message, args) => {
-    let user;
-    if (args[0]) {
-      const userID = args[0].replace(/\D/g, ''); // Remove non-digit characters
-      try {
-        user = await message.guild.members.fetch(userID);
-      } catch (error) {
-        return message.reply('User not found. Please mention a valid user or provide a valid user ID.');
-      }
-    } else if (message.mentions.members.size) {
-      user = message.mentions.members.first();
-    } else {
-      return message.reply('Please mention a user or provide their ID.');
-    }
+    const userIdentifier = args[0];
+    const user = await getUser(message, userIdentifier) || message.author; // Default to message author if not found
 
     if (!user) {
-      return message.reply('User not found. Please mention a valid user or provide a valid user ID.');
+      const embed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setDescription('User not found. Please mention a valid user or provide a valid user ID.');
+      return message.reply({ embeds: [embed] });
     }
 
     const userInfoEmbed = new EmbedBuilder()
@@ -29,7 +43,7 @@ module.exports = {
         { name: 'User ID', value: user.user.id, inline: true },
         { name: 'Account Created', value: user.user.createdAt.toDateString(), inline: true },
         { name: 'Joined Server', value: user.joinedAt ? user.joinedAt.toDateString() : 'N/A', inline: true },
-        { name: 'Roles', value: user.roles.cache.map(role => role.name).join(', '), inline: true }
+        { name: 'Roles', value: user.roles.cache.map(role => role.name).join(', ') || 'None', inline: true }
       )
       .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
       .setTimestamp();
@@ -38,22 +52,14 @@ module.exports = {
   },
 
   pfp: async (message, args) => {
-    let user;
-    if (args[0]) {
-      const userID = args[0].replace(/\D/g, ''); // Remove non-digit characters
-      try {
-        user = await message.guild.members.fetch(userID);
-      } catch (error) {
-        return message.reply('User not found. Please mention a valid user or provide a valid user ID.');
-      }
-    } else if (message.mentions.members.size) {
-      user = message.mentions.members.first();
-    } else {
-      user = message.member;
-    }
+    const userIdentifier = args[0];
+    const user = await getUser(message, userIdentifier) || message.member; // Default to message member if not found
 
     if (!user) {
-      return message.reply('User not found. Please mention a valid user or provide a valid user ID.');
+      const embed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setDescription('User not found. Please mention a valid user or provide a valid user ID.');
+      return message.reply({ embeds: [embed] });
     }
 
     const pfpEmbed = new EmbedBuilder()
@@ -67,29 +73,18 @@ module.exports = {
   },
 
   banner: async (message, args) => {
-    let user;
-    if (args[0]) {
-      const userID = args[0].replace(/\D/g, ''); // Remove non-digit characters
-      try {
-        user = await message.guild.members.fetch(userID);
-      } catch (error) {
-        return message.reply('User not found. Please mention a valid user or provide a valid user ID.');
-      }
-    } else if (message.mentions.members.size) {
-      user = message.mentions.members.first();
-    } else {
-      user = message.member;
-    }
+    const userIdentifier = args[0];
+    const user = await getUser(message, userIdentifier) || message.member; // Default to message member if not found
 
     if (!user) {
-      return message.reply('User not found. Please mention a valid user or provide a valid user ID.');
+      const embed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setDescription('User not found. Please mention a valid user or provide a valid user ID.');
+      return message.reply({ embeds: [embed] });
     }
 
     try {
-      // Fetch the user object to ensure we have the latest data
       const fetchedUser = await user.user.fetch();
-
-      // Get the banner URL
       const bannerURL = fetchedUser.bannerURL({ size: 2048, dynamic: true });
 
       if (bannerURL) {
@@ -102,11 +97,17 @@ module.exports = {
 
         message.channel.send({ embeds: [bannerEmbed] });
       } else {
-        message.reply('This user does not have a banner or the bot cannot access it.');
+        const embed = new EmbedBuilder()
+          .setColor('#ff0000')
+          .setDescription('This user does not have a banner or the bot cannot access it.');
+        message.reply({ embeds: [embed] });
       }
     } catch (error) {
       console.error('Error fetching banner:', error);
-      message.reply('There was an error fetching the banner.');
+      const embed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setDescription('There was an error fetching the banner.');
+      message.reply({ embeds: [embed] });
     }
   }
 };
